@@ -37,12 +37,25 @@ The system combines **Time-of-Flight (ToF)** and **ultrasonic sensors** to provi
 
 ---
 
-### Repository Structure 
-/hardware-designs
-┣ circuit_schematic.kicad_pcb
-┣ enclosure_model.sldprt
-/firmware
-┣ main.ino
-/docs
-┣ pugh_matrix.pdf
-┣ technical_memo_v2.pdf
+### Repository Structure
+```
+hardware-designs
+├── circuit_schematic.kicad_pcb
+├── enclosure_model.sldprt
+firmware
+├── main.ino
+docs
+├── pugh_matrix.pdf
+└── technical_memo_v2.pdf
+```
+
+
+---
+
+### License  
+This project is currently **private and under client collaboration**. Portions may be shared publicly for academic or demonstration purposes only.
+
+---
+
+### Acknowledgements  
+Special thanks to **Skanska** and **Duke University’s EGR101 Course** for technical guidance, mentorship, and access to prototyping facilities.
