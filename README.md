@@ -37,4 +37,12 @@ The system combines **Time-of-Flight (ToF)** and **ultrasonic sensors** to provi
 
 ---
 
-### Repository Structure  
+### Repository Structure 
+/hardware-designs
+┣ circuit_schematic.kicad_pcb
+┣ enclosure_model.sldprt
+/firmware
+┣ main.ino
+/docs
+┣ pugh_matrix.pdf
+┣ technical_memo_v2.pdf
