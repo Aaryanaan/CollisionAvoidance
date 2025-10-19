@@ -41,12 +41,13 @@ The system combines **Time-of-Flight (ToF)** and **ultrasonic sensors** to provi
 ```
 hardware-designs
 ├── circuit_schematic.kicad_pcb
-├── enclosure_model.sldprt
+├── enclosure_model.STL
 firmware
 ├── main.ino
 docs
 ├── pugh_matrix.pdf
-└── technical_memo_v2.pdf
+├── TechnicalMemo1.pdf
+└── TechnicalMemo2.pdf
 ```
 
 
