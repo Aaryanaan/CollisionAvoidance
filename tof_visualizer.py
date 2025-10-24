@@ -10,7 +10,7 @@ import serial
 from serial.tools import list_ports
 
 # ---------------- CONFIG ----------------
-SERIAL_PORT = "/dev/cd.usbmodem1101"            # "AUTO" or explicit, e.g., "/dev/tty.usbmodem1201" or "COM5"
+SERIAL_PORT = "/dev/cu.usbmodem101"            # "AUTO" or explicit, e.g., "/dev/tty.usbmodem1201" or "COM5"
 BAUD = 115200
 MAX_RANGE_MM = 1200
 WIDTH, HEIGHT = 900, 900
