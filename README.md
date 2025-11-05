@@ -4,6 +4,7 @@
 ### Overview  
 This project, developed in collaboration with **Skanska’s Safety Innovation Team**, aims to reduce jobsite accidents by integrating a **low-cost collision detection and avoidance system** into industrial scissor lifts.  
 The system uses **ultrasonic sensors** to provide 360° proximity coverage, delivering adaptive alerts to operators and improving situational awareness in dynamic construction environments.  
+Code for using a **time-of-flight** sensor is included, as it was tested throughout the prototyping process. Use was eventually discarded in favor of a more robust solution.
 
 ---
 
@@ -17,7 +18,7 @@ The system uses **ultrasonic sensors** to provide 360° proximity coverage, deli
 ---
 
 ### Technical Stack  
-- **Hardware:** VL53L0X ToF sensors, HC-SR04 ultrasonic sensors, Arduino Mega 2560, piezo buzzer, custom PCB  
+- **Hardware:** VL53L0X ToF sensors, HC-SR04 ultrasonic sensors, Arduino UNO R3, Arduino NANO, piezo buzzer  
 - **Software:** Arduino IDE (C/C++), VSCode, PyGame & Conda (Visualization), Onshape & KiCad (mechanical & electrical design)  
 - **Documentation:** Pugh screening matrices, design scoring tables, and technical memos written for client review  
 
