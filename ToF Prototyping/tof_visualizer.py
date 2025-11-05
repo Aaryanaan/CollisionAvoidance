@@ -61,7 +61,7 @@ def open_serial(port, baud):
         time.sleep(0.3)
         return ser
     except Exception as e:
-        print(f"❌ Could not open serial port {port}: {e}")
+        print(f"Could not open serial port {port}: {e}")
         return None
 
 def main():
@@ -71,7 +71,7 @@ def main():
     port = SERIAL_PORT
     if port == "AUTO":
         port = autodetect_port()
-        print(f"🔎 Auto-detected serial port: {port}" if port else "❌ Auto-detect failed. Set SERIAL_PORT manually.")
+        print(f"🔎 Auto-detected serial port: {port}" if port else "Auto-detect failed. Set SERIAL_PORT manually.")
     ser = open_serial(port, BAUD) if port else None
     connected = ser is not None
 
