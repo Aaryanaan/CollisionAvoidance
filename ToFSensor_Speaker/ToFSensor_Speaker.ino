@@ -1,13 +1,6 @@
-// ===== SCISSOR LIFT SAFETY SENSOR =====
-// VL53L0X Time-of-Flight + 270° Servo + Proximity Buzzer
-// Author: Aaryan / ChatGPT Collab
-// Version: v2.1 — Rectangular Zone Alert + Distance-Based Beep
-// ---------------------------------------------------------------
-// Connections:
-//   - VL53L0X: VCC→5V, GND→GND, SDA→A4, SCL→A5
-//   - Servo: Signal→D7, 5V→External 5V (≥1A), GND shared with Arduino
-//   - Buzzer: Signal→D8, GND→GND
-// ---------------------------------------------------------------
+// ===== SCISSOR LIFT SAFETY SENSOR (Self-mask + Adaptive Sweep) =====
+// VL53L0X + 270° Servo + Proximity Buzzer
+// Serial out: angle_deg,mm,x_mm,y_mm   (visualizer accepts 2 or 4 columns)
 
 #include <Wire.h>
 #include <VL53L0X.h>
@@ -17,36 +10,48 @@ VL53L0X tof;
 Servo scanServo;
 
 // ---------------- USER CONFIG ----------------
-const int SERVO_PIN = 7;
-const int BUZZER_PIN = 8;
+// Pins
+const int SERVO_PIN   = 7;
+const int BUZZER_PIN  = 8;
 
-// Servo motion calibration
+// Servo calibration (270° servo)
 const int SERVO_MIN_US = 500;
 const int SERVO_MAX_US = 2500;
 
 // Sweep geometry
 const float TOTAL_FOV_DEG = 270.0;
 const float TOF_FOV_DEG   = 25.0;
-const float CENTER_DEG    = 135.0;  // 0° = right, 90° = forward
+const float CENTER_DEG    = 135.0;   // 0° right, 90° forward
 
-const float DEG_STEP      = 2.0;
-const uint16_t SERVO_SETTLE_MS = 10;
-const uint16_t TOF_TIMEOUT_MS  = 30;
+// FAST vs SLOW profile
+const float DEG_STEP_FAST       = 2.0;
+const uint16_t SETTLE_MS_FAST   = 10;
 
-// Sensor performance
-const uint32_t TIMING_BUDGET_US = 20000;  // 20 ms read time
-const uint16_t IM_INTERVAL_MS   = TIMING_BUDGET_US / 1000;
+const float DEG_STEP_SLOW       = 0.8;   // finer stepping when near obstacle
+const uint16_t SETTLE_MS_SLOW   = 28;    // let servo damp and ToF stabilize
+
+// How long we keep slow mode after a near hit (in "points")
+const uint16_t SLOW_HOLD_POINTS = 20;   // ~ one short arc worth
+
+// ToF configuration
+const uint16_t TOF_TIMEOUT_MS     = 30;
+const uint32_t TIMING_BUDGET_US   = 20000;           // 20 ms
+const uint16_t IM_INTERVAL_MS     = TIMING_BUDGET_US / 1000;
 
 // Safety distances
-const int ALERT_DISTANCE_MM = 200;   // 20 cm proximity alert
-const int MIN_DISTANCE_MM   = 30;    // 3 cm scaling floor
+const int ALERT_DISTANCE_MM = 200;   // 20 cm
+const int MIN_DISTANCE_MM   = 30;    // clamp for pitch mapping
 
-// Lift geometry (define in millimeters)
-const float RECT_X_MIN = -200;   // left safety margin
-const float RECT_X_MAX = 800;    // right boundary (width)
-const float RECT_Y_MIN = -100;   // behind sensor
-const float RECT_Y_MAX = 600;    // in front of lift
+// Lift rectangular danger zone (mm), matches Python overlay
+const float RECT_X_MIN = -200;
+const float RECT_X_MAX =  800;
+const float RECT_Y_MIN = -100;
+const float RECT_Y_MAX =  600;
 
+// ---- Self-mask (ignore the lift corner where the sensor sits) ----
+// Treat any return inside the interior quadrant (x>=0,y>=0) and within this
+// radius as a self-hit and ignore it (no beep, no slow, send -1 to host).
+const int SELF_MASK_RADIUS_MM = 350;     // tune ~ 250–400 depending on mount
 // ---------------------------------------------------------------
 
 // Derived sweep bounds (keep ToF beam inside 270°)
@@ -55,14 +60,27 @@ const float HALF_TOF_FOV = TOF_FOV_DEG * 0.5f;
 const float SWEEP_START_DEG = (CENTER_DEG - HALF_TOTAL) + HALF_TOF_FOV;
 const float SWEEP_END_DEG   = (CENTER_DEG + HALF_TOTAL) - HALF_TOF_FOV;
 
-// Map angle [0–270] to servo microseconds
+// ---------------- INTERNAL STATE ----------------
+float currentAngle = SWEEP_START_DEG;
+int   sweepDir     = +1;       // +1 forward, -1 backward
+uint16_t slowHold  = 0;        // countdown for slow mode
+
+// ---------------------------------------------------------------
+// Helpers
 int angle270ToMicros(float angleDeg) {
   angleDeg = constrain(angleDeg, 0, 270);
   float t = angleDeg / 270.0f;
   return SERVO_MIN_US + t * (SERVO_MAX_US - SERVO_MIN_US);
 }
+inline void gotoAngle(float ang) { scanServo.writeMicroseconds(angle270ToMicros(ang)); }
 
-void gotoAngle(float ang) { scanServo.writeMicroseconds(angle270ToMicros(ang)); }
+inline bool inRect(float x, float y) {
+  return (x >= RECT_X_MIN && x <= RECT_X_MAX &&
+          y >= RECT_Y_MIN && y <= RECT_Y_MAX);
+}
+inline bool isSelfHit(float x, float y, uint16_t mm) {
+  return (x >= 0 && y >= 0 && mm <= SELF_MASK_RADIUS_MM);
+}
 
 uint16_t readToFmm() { return tof.readRangeContinuousMillimeters(); }
 
@@ -71,16 +89,14 @@ void setup() {
   Serial.begin(115200);
   Wire.begin();
   Wire.setClock(400000);
-  pinMode(BUZZER_PIN, OUTPUT);
 
+  pinMode(BUZZER_PIN, OUTPUT);
   scanServo.attach(SERVO_PIN, SERVO_MIN_US, SERVO_MAX_US);
 
-  // Initialize sensor
   if (!tof.init()) {
     Serial.println("ERR:init");
     while (1);
   }
-
   tof.setTimeout(TOF_TIMEOUT_MS);
   tof.setSignalRateLimit(0.25f);
   tof.setMeasurementTimingBudget(TIMING_BUDGET_US);
@@ -89,69 +105,74 @@ void setup() {
   tof.setMeasurementTimingBudget(TIMING_BUDGET_US);
   tof.startContinuous(IM_INTERVAL_MS);
 
-  gotoAngle(SWEEP_START_DEG);
+  gotoAngle(currentAngle);
   delay(200);
-  Serial.println("=== Scissor Lift Safety System Active ===");
+  Serial.println("=== Scissor Lift Safety System Active (Self-mask + Adaptive Sweep) ===");
 }
 
 // ---------------------------------------------------------------
 void loop() {
-  // Sweep forward
-  for (float ang = SWEEP_START_DEG; ang <= SWEEP_END_DEG; ang += DEG_STEP)
-    scanAndAlert(ang);
+  // Choose motion profile based on slowHold
+  const bool slowMode = (slowHold > 0);
+  const float step    = slowMode ? DEG_STEP_SLOW     : DEG_STEP_FAST;
+  const uint16_t wait = slowMode ? SETTLE_MS_SLOW    : SETTLE_MS_FAST;
 
-  // Sweep backward
-  for (float ang = SWEEP_END_DEG; ang >= SWEEP_START_DEG; ang -= DEG_STEP)
-    scanAndAlert(ang);
-}
+  // Move
+  gotoAngle(currentAngle);
+  delay(wait);
 
-// ---------------------------------------------------------------
-void scanAndAlert(float ang) {
-  gotoAngle(ang);
-  delay(SERVO_SETTLE_MS);
-
+  // Read
   uint16_t mm = readToFmm();
-  if (tof.timeoutOccurred() || mm == 0 || mm > 4000) {
-    noTone(BUZZER_PIN);
-    return;
-  }
+  if (!tof.timeoutOccurred() && mm > 0 && mm < 4000) {
+    // Polar -> Cartesian (mm)
+    float rad = radians(currentAngle);
+    float x = mm * cos(rad);
+    float y = mm * sin(rad);
 
-  // Convert polar → Cartesian (mm)
-  float x = mm * cos(radians(ang));
-  float y = mm * sin(radians(ang));
+    // Self-mask: ignore anything that is our own corner within the radius.
+    if (isSelfHit(x, y, mm)) {
+      // Tell visualizer to clear the bin at this angle
+      Serial.print(currentAngle, 1);
+      Serial.println(",-1");
+      noTone(BUZZER_PIN);
+    } else {
+      // Normal publish (angle,mm,x,y)
+      Serial.print(currentAngle, 1); Serial.print(",");
+      Serial.print(mm);              Serial.print(",");
+      Serial.print(x, 0);            Serial.print(",");
+      Serial.println(y, 0);
 
-  // Check if point lies inside rectangular safety perimeter
-  bool inRect = (x >= RECT_X_MIN && x <= RECT_X_MAX &&
-                 y >= RECT_Y_MIN && y <= RECT_Y_MAX);
-
-  // Serial data for visualization
-  Serial.print(ang, 1);
-  Serial.print(",");
-  Serial.print(mm);
-  Serial.print(",");
-  Serial.print(x, 0);
-  Serial.print(",");
-  Serial.println(y, 0);
-
-  // Alert only if inside rectangular zone and too close
-  if (inRect && mm <= ALERT_DISTANCE_MM) {
-    proximityBeep(mm);
+      // If inside rectangular danger zone and closer than threshold → beep + slow
+      if (inRect(x, y) && mm <= ALERT_DISTANCE_MM) {
+        proximityBeep(mm);
+        slowHold = SLOW_HOLD_POINTS;             // enter/refresh slow mode
+      } else {
+        noTone(BUZZER_PIN);
+        if (slowHold > 0) slowHold--;            // decay slow mode when clear
+      }
+    }
   } else {
+    // bad read: clear dot at this angle and decay slowHold
+    Serial.print(currentAngle, 1);
+    Serial.println(",-1");
     noTone(BUZZER_PIN);
+    if (slowHold > 0) slowHold--;
   }
+
+  // Advance angle with current step & direction
+  currentAngle += sweepDir * step;
+  if (currentAngle >= SWEEP_END_DEG)  { currentAngle = SWEEP_END_DEG;  sweepDir = -1; }
+  if (currentAngle <= SWEEP_START_DEG){ currentAngle = SWEEP_START_DEG; sweepDir = +1; }
 }
 
 // ---------------------------------------------------------------
 void proximityBeep(uint16_t distance) {
-  // Map distance → pitch (closer = higher)
-  int freq = map(distance, ALERT_DISTANCE_MM, MIN_DISTANCE_MM, 400, 2500);
-  freq = constrain(freq, 400, 2500);
-
-  // Map distance → delay between beeps (closer = faster ping rate)
-  int pingDelay = map(distance, ALERT_DISTANCE_MM, MIN_DISTANCE_MM, 300, 50);
-  pingDelay = constrain(pingDelay, 50, 300);
-
-  // Play short tone
+  // Pitch: closer = higher
+  int freq = map(distance, ALERT_DISTANCE_MM, MIN_DISTANCE_MM, 450, 2500);
+  freq = constrain(freq, 450, 2500);
+  // Ping cadence: closer = faster
+  int pingMs = map(distance, ALERT_DISTANCE_MM, MIN_DISTANCE_MM, 280, 60);
+  pingMs = constrain(pingMs, 60, 300);
   tone(BUZZER_PIN, freq, 40);
-  delay(pingDelay);
+  delay(pingMs);
 }
