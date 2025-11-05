@@ -36,22 +36,6 @@ The system uses **ultrasonic sensors** to provide 360° proximity coverage, deli
 
 ---
 
-### Repository Structure
-```
-hardware-designs
-├── circuit_schematic.kicad_pcb
-├── enclosure_model.STL
-firmware
-├── main.ino
-docs
-├── pugh_matrix.pdf
-├── TechnicalMemo1.pdf
-└── TechnicalMemo2.pdf
-```
-
-
----
-
 ### License  
 This project is currently **private and under client collaboration**. Portions may be shared publicly for academic or demonstration purposes only.
 
