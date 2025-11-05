@@ -3,22 +3,22 @@
 
 ### Overview  
 This project, developed in collaboration with **Skanska’s Safety Innovation Team**, aims to reduce jobsite accidents by integrating a **low-cost collision detection and avoidance system** into industrial scissor lifts.  
-The system combines **Time-of-Flight (ToF)** and **ultrasonic sensors** to provide 360° proximity coverage, delivering adaptive alerts to operators and improving situational awareness in dynamic construction environments.  
+The system uses **ultrasonic sensors** to provide 360° proximity coverage, delivering adaptive alerts to operators and improving situational awareness in dynamic construction environments.  
 
 ---
 
 ### Key Features  
-- **Multi-Sensor Fusion:** Combines ToF and ultrasonic readings for reliable distance measurement under varying noise and lighting conditions.  
+- **2 Degrees of Detection:** two ultrasonic sensor readings for reliable distance measurement under varying noise and lighting conditions for 60 degrees vertical and 270 degrees horizontal per module.
 - **Embedded Software:** Real-time Arduino firmware for continuous sensor polling, adaptive audio alerts, and signal filtering.  
 - **Robust Design:** Built for durability, scalability, and cost efficiency — **45% cheaper** than initial prototype iterations.  
 - **Data-Driven Development:** Design decisions guided by **Pugh matrices**, **scoring analyses**, and **peer-reviewed research**.  
-- **Client Collaboration:** Co-developed with **3 other interns** through Duke’s Embedded Systems & CAD Design Program; presented deliverables to Skanska as part of a **client-facing engagement**.  
+- **Client Collaboration:** Co-developed with **3 other interns** through Duke's EGR101 course; presented deliverables to Skanska and other professional investors as part of a **client-facing engagement**.  
 
 ---
 
 ### Technical Stack  
 - **Hardware:** VL53L0X ToF sensors, HC-SR04 ultrasonic sensors, Arduino Mega 2560, piezo buzzer, custom PCB  
-- **Software:** Arduino IDE (C/C++), MATLAB (signal analysis), SolidWorks / KiCad (mechanical & electrical design)  
+- **Software:** Arduino IDE (C/C++), VSCode, PyGame & Conda (Visualization), Onshape & KiCad (mechanical & electrical design)  
 - **Documentation:** Pugh screening matrices, design scoring tables, and technical memos written for client review  
 
 ---
@@ -31,8 +31,7 @@ The system combines **Time-of-Flight (ToF)** and **ultrasonic sensors** to provi
 ---
 
 ### Team  
-- **Project Lead:** Aaryan Nanekar  
-- **Collaborators:** Veer Bhatia, Pierson Jones, Jack Oakman  
+- **Project Leads:** Aaryan Nanekar, Veer Bhatia, Pierson Jones, Jack Oakman  
 - **Client Partner:** Skanska USA – Safety Innovation Team  
 
 ---
