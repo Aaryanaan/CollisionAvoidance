@@ -18,7 +18,7 @@ Code for using a single **time-of-flight** sensor is included alongside a 2-dime
 ---
 
 ### Technical Stack  
-- **Hardware:** VL53L0X ToF sensors, HC-SR04 ultrasonic sensors, Arduino UNO R3, Arduino NANO, piezo buzzer  
+- **Hardware:** VL53L0X & VL53L7CX ToF sensors, HC-SR04 ultrasonic sensors, Arduino UNO R3, Arduino NANO, ESP-32 S2 DevKit, piezo buzzer  
 - **Software:** Arduino IDE (C/C++), VSCode, PyGame & Conda (Visualization), Onshape & KiCad (mechanical & electrical design)  
 - **Documentation:** Pugh screening matrices, design scoring tables, and technical memos written for client review  
 
